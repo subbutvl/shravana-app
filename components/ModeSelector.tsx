@@ -1,3 +1,5 @@
+import { useTranslations } from "../hooks/useTranslations";
+import type { Language } from "./LanguageSwitcher";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 export type Mode = "timer" | "repetition";
@@ -6,9 +8,11 @@ type Props = {
   mode: Mode;
   onChange: (mode: Mode) => void;
   disabled?: boolean;
+  language: Language;
 };
 
-export function ModeSelector({ mode, onChange, disabled }: Props) {
+export function ModeSelector({ mode, onChange, disabled, language }: Props) {
+  const t = useTranslations(language);
   return (
     <View style={styles.container}>
       <Pressable
@@ -26,7 +30,7 @@ export function ModeSelector({ mode, onChange, disabled }: Props) {
             mode === "timer" ? styles.textActive : styles.textInactive,
           ]}
         >
-          Timer
+          {t.timer}
         </Text>
       </Pressable>
       <Pressable
@@ -44,7 +48,7 @@ export function ModeSelector({ mode, onChange, disabled }: Props) {
             mode === "repetition" ? styles.textActive : styles.textInactive,
           ]}
         >
-          Repetition
+          {t.repetition}
         </Text>
       </Pressable>
     </View>

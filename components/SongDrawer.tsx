@@ -1,5 +1,5 @@
 import { LinearGradient } from "expo-linear-gradient";
-import { Check, Music2, X } from "lucide-react-native";
+import { Check, Heart, Music2, X } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import {
   Dimensions,
@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslations } from "../hooks/useTranslations";
 import type { Song } from "../types/song";
 import type { Language } from "./LanguageSwitcher";
 
@@ -29,6 +30,7 @@ type Props = {
   selectedSong: Song | null;
   onSelectSong: (song: Song) => void;
   language: Language;
+  favorites: Set<string>;
 };
 
 export function SongDrawer({
@@ -38,13 +40,21 @@ export function SongDrawer({
   selectedSong,
   onSelectSong,
   language,
+  favorites,
 }: Props) {
   const insets = useSafeAreaInsets();
+  const t = useTranslations(language);
   const [pendingSong, setPendingSong] = useState<Song | null>(selectedSong);
+  const [showFavorites, setShowFavorites] = useState(false);
+
+  const visibleSongs = showFavorites
+    ? songs.filter((s) => favorites.has(s.id))
+    : songs;
 
   useEffect(() => {
     if (visible) {
       setPendingSong(selectedSong);
+      setShowFavorites(false);
     }
   }, [visible, selectedSong]);
 
@@ -70,7 +80,7 @@ export function SongDrawer({
 
           <View style={styles.header}>
             <View style={styles.headerSpacer} />
-            <Text style={styles.headerTitle}>Select a Song</Text>
+            <Text style={styles.headerTitle}>{t.selectMantra}</Text>
             <Pressable
               onPress={onClose}
               hitSlop={12}
@@ -80,8 +90,33 @@ export function SongDrawer({
             </Pressable>
           </View>
 
+          <View style={styles.filterRow}>
+            <Pressable
+              style={[styles.filterTab, !showFavorites && styles.filterTabActive]}
+              onPress={() => setShowFavorites(false)}
+            >
+              <Text style={[styles.filterTabText, !showFavorites && styles.filterTabTextActive]}>
+                {t.all}
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[styles.filterTab, showFavorites && styles.filterTabActive]}
+              onPress={() => setShowFavorites(true)}
+            >
+              <Heart
+                size={12}
+                color={showFavorites ? ACCENT : "#94A3B8"}
+                fill={showFavorites ? ACCENT : "none"}
+                style={styles.filterTabIcon}
+              />
+              <Text style={[styles.filterTabText, showFavorites && styles.filterTabTextActive]}>
+                {t.favorites}
+              </Text>
+            </Pressable>
+          </View>
+
           <FlatList
-            data={songs}
+            data={visibleSongs}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.listContent}
             ItemSeparatorComponent={() => (
@@ -138,7 +173,7 @@ export function SongDrawer({
 
           <View style={[styles.footer, { paddingBottom: 20 + insets.bottom }]}>
             <Pressable style={styles.confirmButton} onPress={handleConfirm}>
-              <Text style={styles.confirmButtonText}>Confirm Selection</Text>
+              <Text style={styles.confirmButtonText}>{t.confirmSelection}</Text>
             </Pressable>
           </View>
         </Pressable>
@@ -196,6 +231,37 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(178, 66, 1, 0.1)",
     alignItems: "center",
     justifyContent: "center",
+  },
+  filterRow: {
+    flexDirection: "row",
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(178, 66, 1, 0.1)",
+  },
+  filterTab: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    gap: 4,
+  },
+  filterTabActive: {
+    backgroundColor: LIGHT_ORANGE_BG,
+    borderColor: ACCENT,
+  },
+  filterTabIcon: {},
+  filterTabText: {
+    fontSize: 13,
+    fontFamily: "AnekTamil-Medium",
+    color: "#64748B",
+  },
+  filterTabTextActive: {
+    color: ACCENT,
   },
   listContent: { paddingBottom: 16 },
   separator: {

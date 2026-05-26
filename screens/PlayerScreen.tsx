@@ -1,4 +1,5 @@
-import { Music2 } from "lucide-react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Heart, Music2 } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ImageBackground,
@@ -17,9 +18,12 @@ import { ModeSelector, type Mode } from "../components/ModeSelector";
 import { OptionsSelector } from "../components/OptionsSelector";
 import { PlayerControls } from "../components/PlayerControls";
 import { SongCover } from "../components/SongCover";
+import { MantraInfo } from "../components/MantraInfo";
 import { SongDrawer } from "../components/SongDrawer";
 import { songs } from "../data/songs";
 import { useMantraAudioPlayer } from "../hooks/useAudioPlayer";
+import { useFavorites } from "../hooks/useFavorites";
+import { useTranslations } from "../hooks/useTranslations";
 import type { Song } from "../types/song";
 
 function getRandomSong(current: Song | null): Song {
@@ -32,6 +36,14 @@ export default function PlayerScreen() {
   const insets = useSafeAreaInsets();
   const [language, setLanguage] = useState<Language>("en");
   const [selectedSong, setSelectedSong] = useState<Song>(songs[0]);
+
+  useEffect(() => {
+    AsyncStorage.getItem("lastSongId").then((id) => {
+      if (!id) return;
+      const found = songs.find((s) => s.id === id);
+      if (found) setSelectedSong(found);
+    });
+  }, []);
   const [mode, setMode] = useState<Mode>("timer");
   const [timerValue, setTimerValue] = useState(15);
   const [repetitionValue, setRepetitionValue] = useState(11);
@@ -79,7 +91,7 @@ export default function PlayerScreen() {
 
   const audio = useMantraAudioPlayer(handlePlaybackComplete);
   audioRef.current = audio;
-  const { isPlaying, currentSong, loadAndPlay, playPause, stop, replay } =
+  const { isPlaying, currentSong, currentTime, duration, loadAndPlay, playPause, stop, replay, seekTo, setVolume } =
     audio;
 
   isPlayingRef.current = isPlaying;
@@ -170,6 +182,7 @@ export default function PlayerScreen() {
   const handleRandom = useCallback(() => {
     const next = getRandomSong(selectedSong);
     setSelectedSong(next);
+    AsyncStorage.setItem("lastSongId", next.id);
     if (isPlaying) {
       loadAndPlay(next);
       if (mode === "repetition") {
@@ -191,6 +204,7 @@ export default function PlayerScreen() {
   const handleSelectSong = useCallback(
     (song: Song) => {
       setSelectedSong(song);
+      AsyncStorage.setItem("lastSongId", song.id);
       if (isPlayingRef.current) {
         loadAndPlay(song);
         if (mode === "repetition") {
@@ -200,6 +214,9 @@ export default function PlayerScreen() {
     },
     [mode, repetitionValue, loadAndPlay],
   );
+
+  const { favorites, toggleFavorite } = useFavorites();
+  const t = useTranslations(language);
 
   const canSwitchMode = !isPlaying && !replayInProgress;
   const isPlayingUI = isPlaying || replayInProgress;
@@ -241,6 +258,17 @@ export default function PlayerScreen() {
         </Pressable>
 
         <View style={styles.titleRow}>
+          <Pressable
+            onPress={() => toggleFavorite(displaySong.id)}
+            hitSlop={12}
+            style={styles.favoriteIcon}
+          >
+            <Heart
+              size={18}
+              color="#B24201"
+              fill={favorites.has(displaySong.id) ? "#B24201" : "none"}
+            />
+          </Pressable>
           <Text style={styles.title} numberOfLines={1}>
             {displayTitle}
           </Text>
@@ -263,6 +291,8 @@ export default function PlayerScreen() {
           </Text>
         </View>
 
+        <MantraInfo song={displaySong} language={language} />
+
         <View style={styles.controls}>
           <PlayerControls
             isPlaying={isPlayingUI}
@@ -270,6 +300,10 @@ export default function PlayerScreen() {
             onPlayPause={handlePlayPause}
             onRandom={handleRandom}
             randomDisabled={isPlayingUI}
+            currentTime={currentTime}
+            duration={duration}
+            onSeek={seekTo}
+            onVolumeChange={setVolume}
           />
         </View>
 
@@ -278,6 +312,7 @@ export default function PlayerScreen() {
             mode={mode}
             onChange={setMode}
             disabled={!canSwitchMode}
+            language={language}
           />
         </View>
 
@@ -289,6 +324,7 @@ export default function PlayerScreen() {
             onTimerChange={setTimerValue}
             onRepetitionChange={handleRepetitionChange}
             disabled={false}
+            language={language}
           />
         </View>
 
@@ -296,13 +332,13 @@ export default function PlayerScreen() {
           remainingRepetitions !== null &&
           isPlayingUI && (
             <Text style={styles.remaining}>
-              Remaining: {remainingRepetitions} / {repetitionValue}
+              {t.remaining}: {remainingRepetitions} / {repetitionValue}
             </Text>
           )}
 
         {mode === "timer" && isPlayingUI && timerSecondsLeft > 0 && (
           <Text style={styles.remaining}>
-            Time left: {Math.floor(timerSecondsLeft / 60)}:
+            {t.timeLeft}: {Math.floor(timerSecondsLeft / 60)}:
             {String(timerSecondsLeft % 60).padStart(2, "0")}
           </Text>
         )}
@@ -314,6 +350,7 @@ export default function PlayerScreen() {
           selectedSong={selectedSong}
           onSelectSong={handleSelectSong}
           language={language}
+          favorites={favorites}
         />
       </ScrollView>
     </ImageBackground>
@@ -343,6 +380,9 @@ const styles = StyleSheet.create({
     fontFamily: "AnekTamil-Medium",
     color: "#1E293B",
     textAlign: "center",
+  },
+  favoriteIcon: {
+    paddingRight: 8,
   },
   changeIcon: {
     paddingLeft: 8,

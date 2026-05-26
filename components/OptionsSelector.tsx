@@ -1,4 +1,6 @@
+import { useTranslations } from "../hooks/useTranslations";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import type { Language } from "./LanguageSwitcher";
 import type { Mode } from "./ModeSelector";
 
 const TIMER_OPTIONS = [5, 10, 15, 30] as const;
@@ -11,6 +13,7 @@ type Props = {
   onTimerChange: (v: number) => void;
   onRepetitionChange: (v: number) => void;
   disabled?: boolean;
+  language: Language;
 };
 
 export function OptionsSelector({
@@ -20,15 +23,17 @@ export function OptionsSelector({
   onTimerChange,
   onRepetitionChange,
   disabled,
+  language,
 }: Props) {
+  const t = useTranslations(language);
   const options = mode === "timer" ? TIMER_OPTIONS : REPETITION_OPTIONS;
   const selected = mode === "timer" ? timerValue : repetitionValue;
   const onSelect = mode === "timer" ? onTimerChange : onRepetitionChange;
 
   const label =
     mode === "timer"
-      ? { prefix: "Stops after ", value: `${timerValue} minutes` }
-      : { prefix: "Repeats ", value: `${repetitionValue} times` };
+      ? { prefix: t.stopsAfter, value: `${timerValue}${t.minutes}` }
+      : { prefix: t.repeats, value: `${repetitionValue}${t.times}` };
 
   return (
     <View style={styles.container}>

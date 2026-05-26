@@ -7,4 +7,12 @@ export type Song = {
   category: string;
   image: any;
   audio: any;
+  description: {
+    en: string;
+    ta: string;
+  };
+  lyrics: {
+    en: string;
+    ta: string;
+  };
 };
