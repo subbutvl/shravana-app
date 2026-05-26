@@ -14,11 +14,11 @@ import {
   LanguageSwitcher,
   type Language,
 } from "../components/LanguageSwitcher";
-import { ModeSelector, type Mode } from "../components/ModeSelector";
-import { OptionsSelector } from "../components/OptionsSelector";
+import { LoopDrawer } from "../components/LoopDrawer";
+import { MantraInfoDrawer } from "../components/MantraInfoDrawer";
+import { type Mode } from "../components/ModeSelector";
 import { PlayerControls } from "../components/PlayerControls";
 import { SongCover } from "../components/SongCover";
-import { MantraInfo } from "../components/MantraInfo";
 import { SongDrawer } from "../components/SongDrawer";
 import { songs } from "../data/songs";
 import { useMantraAudioPlayer } from "../hooks/useAudioPlayer";
@@ -37,6 +37,7 @@ export default function PlayerScreen() {
   const [language, setLanguage] = useState<Language>("en");
   const [selectedSong, setSelectedSong] = useState<Song>(songs[0]);
 
+  // Persist last played song
   useEffect(() => {
     AsyncStorage.getItem("lastSongId").then((id) => {
       if (!id) return;
@@ -44,20 +45,28 @@ export default function PlayerScreen() {
       if (found) setSelectedSong(found);
     });
   }, []);
-  const [mode, setMode] = useState<Mode>("timer");
+
+  // Loop settings
+  const [mode, setMode] = useState<Mode>("none");
   const [timerValue, setTimerValue] = useState(15);
   const [repetitionValue, setRepetitionValue] = useState(11);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [remainingRepetitions, setRemainingRepetitions] = useState<
-    number | null
-  >(null);
+
+  // Drawer visibility
+  const [songDrawerOpen, setSongDrawerOpen] = useState(false);
+  const [loopDrawerOpen, setLoopDrawerOpen] = useState(false);
+  const [mantraInfoOpen, setMantraInfoOpen] = useState(false);
+
+  // Runtime state
+  const [remainingRepetitions, setRemainingRepetitions] = useState<number | null>(null);
   const [timerSecondsLeft, setTimerSecondsLeft] = useState(0);
   const [replayInProgress, setReplayInProgress] = useState(false);
+
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isPlayingRef = useRef(false);
   const audioRef = useRef<ReturnType<typeof useMantraAudioPlayer> | null>(null);
   const replayInProgressRef = useRef(false);
 
+  // ── Playback complete handler ──────────────────────────────────────────────
   const handlePlaybackComplete = useCallback(() => {
     if (mode === "timer") {
       if (timerRef.current !== null) {
@@ -71,13 +80,11 @@ export default function PlayerScreen() {
       }
       return;
     }
-    if (mode !== "repetition") return;
+    if (mode !== "repetition") return; // "none" — audio just stops
     setRemainingRepetitions((prev) => {
       if (prev === null) return null;
       const next = prev - 1;
-      console.log("[Repetition] Song finished, remaining:", next);
       if (next <= 0) {
-        console.log("[Repetition] Complete, stopping");
         setReplayInProgress(false);
         audioRef.current?.stop();
         return null;
@@ -91,11 +98,21 @@ export default function PlayerScreen() {
 
   const audio = useMantraAudioPlayer(handlePlaybackComplete);
   audioRef.current = audio;
-  const { isPlaying, currentSong, currentTime, duration, loadAndPlay, playPause, stop, replay, seekTo, setVolume } =
-    audio;
+  const {
+    isPlaying,
+    currentSong,
+    currentTime,
+    duration,
+    loadAndPlay,
+    playPause,
+    stop,
+    replay,
+    seekTo,
+  } = audio;
 
   isPlayingRef.current = isPlaying;
 
+  // ── Timer countdown ────────────────────────────────────────────────────────
   const clearTimer = useCallback(() => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -109,11 +126,9 @@ export default function PlayerScreen() {
     if (timerRef.current !== null) return;
     const totalSeconds = timerValue * 60;
     setTimerSecondsLeft(totalSeconds);
-    console.log("[Timer] Started countdown:", timerValue, "min");
     timerRef.current = setInterval(() => {
       setTimerSecondsLeft((prev) => {
         if (prev <= 1) {
-          console.log("[Timer] Reached zero, stopping");
           if (timerRef.current) {
             clearInterval(timerRef.current);
             timerRef.current = null;
@@ -136,12 +151,11 @@ export default function PlayerScreen() {
   useEffect(() => {
     if (!isPlaying && !replayInProgress) {
       clearTimer();
-      if (mode === "repetition") {
-        setRemainingRepetitions(null);
-      }
+      if (mode === "repetition") setRemainingRepetitions(null);
     }
   }, [isPlaying, mode, replayInProgress, clearTimer]);
 
+  // ── Controls ───────────────────────────────────────────────────────────────
   const handleStop = useCallback(() => {
     replayInProgressRef.current = false;
     setReplayInProgress(false);
@@ -154,9 +168,7 @@ export default function PlayerScreen() {
     const shouldLoad = !currentSong || currentSong.id !== selectedSong.id;
     if (shouldLoad) {
       loadAndPlay(selectedSong);
-      if (mode === "repetition") {
-        setRemainingRepetitions(repetitionValue);
-      }
+      if (mode === "repetition") setRemainingRepetitions(repetitionValue);
       return;
     }
     if (isPlaying) {
@@ -172,34 +184,23 @@ export default function PlayerScreen() {
     selectedSong,
     isPlaying,
     mode,
-    timerValue,
     repetitionValue,
     remainingRepetitions,
     loadAndPlay,
     playPause,
   ]);
 
-  const handleRandom = useCallback(() => {
+  const handlePrev = useCallback(() => {
+    replay();
+  }, [replay]);
+
+  const handleNext = useCallback(() => {
     const next = getRandomSong(selectedSong);
     setSelectedSong(next);
     AsyncStorage.setItem("lastSongId", next.id);
-    if (isPlaying) {
-      loadAndPlay(next);
-      if (mode === "repetition") {
-        setRemainingRepetitions(repetitionValue);
-      }
-    }
-  }, [selectedSong, isPlaying, mode, repetitionValue, loadAndPlay]);
-
-  const handleRepetitionChange = useCallback((val: number) => {
-    setRepetitionValue((prevVal) => {
-      setRemainingRepetitions((prev) => {
-        if (prev === null) return null;
-        return val > prevVal ? prev + (val - prevVal) : Math.min(prev, val);
-      });
-      return val;
-    });
-  }, []);
+    loadAndPlay(next);
+    if (mode === "repetition") setRemainingRepetitions(repetitionValue);
+  }, [selectedSong, mode, repetitionValue, loadAndPlay]);
 
   const handleSelectSong = useCallback(
     (song: Song) => {
@@ -207,24 +208,50 @@ export default function PlayerScreen() {
       AsyncStorage.setItem("lastSongId", song.id);
       if (isPlayingRef.current) {
         loadAndPlay(song);
-        if (mode === "repetition") {
-          setRemainingRepetitions(repetitionValue);
-        }
+        if (mode === "repetition") setRemainingRepetitions(repetitionValue);
       }
     },
     [mode, repetitionValue, loadAndPlay],
   );
 
+  // ── Loop drawer confirm ────────────────────────────────────────────────────
+  const handleLoopConfirm = useCallback(
+    (newMode: Mode, newTimer: number, newRep: number) => {
+      setMode(newMode);
+      setTimerValue(newTimer);
+      setRepetitionValue(newRep);
+      if (newMode !== "timer") clearTimer();
+      if (newMode !== "repetition") setRemainingRepetitions(null);
+      if (newMode === "repetition" && isPlayingRef.current) {
+        setRemainingRepetitions(newRep);
+      }
+    },
+    [clearTimer],
+  );
+
+  // ── Derived state ──────────────────────────────────────────────────────────
   const { favorites, toggleFavorite } = useFavorites();
   const t = useTranslations(language);
 
-  const canSwitchMode = !isPlaying && !replayInProgress;
   const isPlayingUI = isPlaying || replayInProgress;
-
-  const displaySong = isPlayingUI
-    ? (currentSong ?? selectedSong)
-    : selectedSong;
+  const displaySong = isPlayingUI ? (currentSong ?? selectedSong) : selectedSong;
   const displayTitle = displaySong?.title[language] ?? "";
+
+  // Loop info text shown below progress bar
+  let loopInfoText: string | null = null;
+  if (mode === "timer") {
+    if (isPlayingUI && timerSecondsLeft > 0) {
+      loopInfoText = `${t.timeLeft}: ${Math.floor(timerSecondsLeft / 60)}:${String(timerSecondsLeft % 60).padStart(2, "0")}`;
+    } else if (!isPlayingUI) {
+      loopInfoText = `${t.timer} · ${timerValue}${t.minutes}`;
+    }
+  } else if (mode === "repetition") {
+    if (isPlayingUI && remainingRepetitions !== null) {
+      loopInfoText = `${t.remaining}: ${remainingRepetitions} / ${repetitionValue}`;
+    } else if (!isPlayingUI) {
+      loopInfoText = `${t.repetition} · ${repetitionValue}${t.times}`;
+    }
+  }
 
   return (
     <ImageBackground
@@ -236,27 +263,26 @@ export default function PlayerScreen() {
         style={styles.container}
         contentContainerStyle={[
           styles.content,
-          { paddingBottom: 20 + insets.bottom },
+          { paddingBottom: 24 + insets.bottom },
         ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        {/* ── Header ── */}
         <View style={styles.headerRow}>
           <View style={styles.headerSpacer} />
-          <LanguageSwitcher
-            language={language}
-            onLanguageChange={setLanguage}
-          />
+          <LanguageSwitcher language={language} onLanguageChange={setLanguage} />
         </View>
 
+        {/* ── Cover art ── */}
         <Pressable
           style={styles.coverWrapper}
-          onPress={() => !isPlayingUI && setDrawerOpen(true)}
-          disabled={isPlayingUI}
+          onPress={() => setSongDrawerOpen(true)}
         >
           <SongCover source={displaySong.image} />
         </Pressable>
 
+        {/* ── Title row ── */}
         <View style={styles.titleRow}>
           <Pressable
             onPress={() => toggleFavorite(displaySong.id)}
@@ -273,84 +299,66 @@ export default function PlayerScreen() {
             {displayTitle}
           </Text>
           <Pressable
-            onPress={() => !isPlayingUI && setDrawerOpen(true)}
+            onPress={() => setSongDrawerOpen(true)}
             hitSlop={12}
-            style={[
-              styles.changeIcon,
-              isPlayingUI && styles.changeIconDisabled,
-            ]}
-            disabled={isPlayingUI}
+            style={styles.changeIcon}
           >
-            <Music2 size={18} color={isPlayingUI ? "#A8A29E" : "#B24201"} />
+            <Music2 size={18} color="#B24201" />
           </Pressable>
         </View>
 
+        {/* ── Category tag ── */}
         <View style={styles.tags}>
           <Text style={styles.categoryTag}>
             {displaySong.category.toUpperCase()}
           </Text>
         </View>
 
-        <MantraInfo song={displaySong} language={language} />
-
+        {/* ── Spotify-style controls ── */}
         <View style={styles.controls}>
           <PlayerControls
             isPlaying={isPlayingUI}
-            onStop={handleStop}
+            mode={mode}
             onPlayPause={handlePlayPause}
-            onRandom={handleRandom}
-            randomDisabled={isPlayingUI}
+            onStop={handleStop}
+            onPrev={handlePrev}
+            onNext={handleNext}
+            onLoopPress={() => setLoopDrawerOpen(true)}
             currentTime={currentTime}
             duration={duration}
             onSeek={seekTo}
-            onVolumeChange={setVolume}
-          />
-        </View>
-
-        <View style={styles.modeSection}>
-          <ModeSelector
-            mode={mode}
-            onChange={setMode}
-            disabled={!canSwitchMode}
+            loopInfoText={loopInfoText}
+            onAboutMantraPress={() => setMantraInfoOpen(true)}
             language={language}
           />
         </View>
 
-        <View style={styles.optionsSection}>
-          <OptionsSelector
-            mode={mode}
-            timerValue={timerValue}
-            repetitionValue={repetitionValue}
-            onTimerChange={setTimerValue}
-            onRepetitionChange={handleRepetitionChange}
-            disabled={false}
-            language={language}
-          />
-        </View>
-
-        {mode === "repetition" &&
-          remainingRepetitions !== null &&
-          isPlayingUI && (
-            <Text style={styles.remaining}>
-              {t.remaining}: {remainingRepetitions} / {repetitionValue}
-            </Text>
-          )}
-
-        {mode === "timer" && isPlayingUI && timerSecondsLeft > 0 && (
-          <Text style={styles.remaining}>
-            {t.timeLeft}: {Math.floor(timerSecondsLeft / 60)}:
-            {String(timerSecondsLeft % 60).padStart(2, "0")}
-          </Text>
-        )}
-
+        {/* ── Drawers ── */}
         <SongDrawer
-          visible={drawerOpen}
-          onClose={() => setDrawerOpen(false)}
+          visible={songDrawerOpen}
+          onClose={() => setSongDrawerOpen(false)}
           songs={songs}
           selectedSong={selectedSong}
           onSelectSong={handleSelectSong}
           language={language}
           favorites={favorites}
+        />
+
+        <LoopDrawer
+          visible={loopDrawerOpen}
+          onClose={() => setLoopDrawerOpen(false)}
+          mode={mode}
+          timerValue={timerValue}
+          repetitionValue={repetitionValue}
+          onConfirm={handleLoopConfirm}
+          language={language}
+        />
+
+        <MantraInfoDrawer
+          visible={mantraInfoOpen}
+          onClose={() => setMantraInfoOpen(false)}
+          song={displaySong}
+          language={language}
         />
       </ScrollView>
     </ImageBackground>
@@ -376,23 +384,19 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   title: {
-    fontSize: 24,
+    flex: 1,
+    fontSize: 22,
     fontFamily: "AnekTamil-Medium",
     color: "#1E293B",
     textAlign: "center",
   },
-  favoriteIcon: {
-    paddingRight: 8,
-  },
-  changeIcon: {
-    paddingLeft: 8,
-  },
-  changeIconDisabled: { opacity: 0.5 },
+  favoriteIcon: { paddingRight: 8 },
+  changeIcon: { paddingLeft: 8 },
   tags: {
     flexDirection: "row",
     justifyContent: "center",
     gap: 8,
-    marginBottom: 24,
+    marginBottom: 20,
   },
   categoryTag: {
     fontSize: 10,
@@ -406,13 +410,5 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 16,
   },
-  controls: { marginBottom: 24, alignItems: "center" },
-  modeSection: { marginBottom: 12, alignItems: "center" },
-  optionsSection: { marginBottom: 12, alignItems: "center" },
-  remaining: {
-    fontSize: 14,
-    fontFamily: "AnekTamil-Medium",
-    color: "#78350F",
-    textAlign: "center",
-  },
+  controls: { marginBottom: 8, alignItems: "center", width: "100%" },
 });

@@ -14,27 +14,32 @@ export function LanguageSwitcher({ language, onLanguageChange }: Props) {
         style={[styles.option, language === "en" && styles.optionActive]}
         onPress={() => onLanguageChange("en")}
       >
-        <Text
-          style={[
-            styles.text,
-            language === "en" ? styles.textActive : styles.textInactive,
-          ]}
-        >
-          EN
-        </Text>
+        {/* pointerEvents="none" lets touches pass through Text to the Pressable on Android */}
+        <View pointerEvents="none">
+          <Text
+            style={[
+              styles.text,
+              language === "en" ? styles.textActive : styles.textInactive,
+            ]}
+          >
+            EN
+          </Text>
+        </View>
       </Pressable>
       <Pressable
         style={[styles.option, language === "ta" && styles.optionActive]}
         onPress={() => onLanguageChange("ta")}
       >
-        <Text
-          style={[
-            styles.text,
-            language === "ta" ? styles.textActive : styles.textInactive,
-          ]}
-        >
-          தமிழ்
-        </Text>
+        <View pointerEvents="none">
+          <Text
+            style={[
+              styles.text,
+              language === "ta" ? styles.textActive : styles.textInactive,
+            ]}
+          >
+            தமிழ்
+          </Text>
+        </View>
       </Pressable>
     </View>
   );

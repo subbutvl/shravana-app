@@ -7,12 +7,17 @@ export const en = {
   repetition: "Repetition",
   stopsAfter: "Stops after ",
   repeats: "Repeats ",
-  minutes: " minutes",
-  times: " times",
+  minutes: " min",
+  times: "×",
   remaining: "Remaining",
   timeLeft: "Time left",
   aboutMantra: "About this Mantra",
   mantraLabel: "Mantra",
+  description: "Description",
+  loopSettings: "Loop Settings",
+  loopOff: "Off",
+  loopOffDesc: "Play once and stop.",
+  apply: "Apply",
 };
 
 export type Translations = typeof en;

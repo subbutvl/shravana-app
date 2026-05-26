@@ -2,7 +2,7 @@ import { useTranslations } from "../hooks/useTranslations";
 import type { Language } from "./LanguageSwitcher";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-export type Mode = "timer" | "repetition";
+export type Mode = "none" | "timer" | "repetition";
 
 type Props = {
   mode: Mode;

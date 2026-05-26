@@ -37,8 +37,7 @@ export function useMantraAudioPlayer(
     setAudioModeAsync({
       playsInSilentMode: true,
       shouldPlayInBackground: true,
-      interruptionMode: "duckOthers",
-    });
+    }).catch(console.warn);
   }, []);
 
   const didJustFinishHandled = useRef(false);
